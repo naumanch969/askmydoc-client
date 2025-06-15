@@ -1,49 +1,53 @@
 "use client";
 
+import React from "react";
 import { Message } from "@/lib/interfaces";
-import React, { useEffect, useRef } from "react";
-import ReactMarkdown from "react-markdown";
+import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 interface MessageBoxProps {
-  messages: Message[];
+    messages: Message[];
 }
 
-const MessageBox: React.FC<MessageBoxProps> = ({ messages }) => {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  return (
-    <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
-      {messages && messages?.map((message, index) => (
-        <div
-          key={index}
-          className={`flex ${message.role == 'assistant' ? "justify-start" : "justify-end"}`}
-        >
-          <div
-            className={`max-w-[80%] p-3 rounded-lg ${message.role == "assistant"
-              ? "bg-gray-200 text-gray-800"
-              : "bg-primary text-primary-foreground"
-              }`}
-          >
-            <ReactMarkdown>{message.content}</ReactMarkdown>
-            {message.isStreaming && (
-              <div className="mt-1">
-                <span className="animate-pulse">▌</span>
-              </div>
-            )}
-          </div>
+const MessageBox = ({ messages }: MessageBoxProps) => {
+    return (
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {messages.map((message) => (
+                <div
+                    key={message._id}
+                    className={cn(
+                        "flex w-full",
+                        message.role === "user" ? "justify-end" : "justify-start"
+                    )}
+                >
+                    <div
+                        className={cn(
+                            "rounded-lg px-4 py-2 max-w-[80%]",
+                            message.role === "user"
+                                ? "bg-primary text-primary-foreground"
+                                : message.isState
+                                    ? "bg-muted text-muted-foreground"
+                                    : "bg-secondary text-secondary-foreground"
+                        )}
+                    >
+                        {message.isState ? (
+                            <div className="flex items-center gap-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <span>{message.content}</span>
+                            </div>
+                        ) : (
+                            <div className="whitespace-pre-wrap">
+                                {message.content}
+                                {message.isStreaming && (
+                                    <span className="inline-block w-2 h-4 ml-1 bg-current animate-pulse" />
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ))}
         </div>
-      ))}
-      <div ref={messagesEndRef} />
-    </div>
-  );
+    );
 };
 
 export default MessageBox;

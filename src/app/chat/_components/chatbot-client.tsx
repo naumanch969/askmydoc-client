@@ -22,6 +22,18 @@ interface SocketError {
     timestamp: string;
 }
 
+interface StreamChunk {
+    messageId: string;
+    content: string;
+    timestamp: string;
+}
+
+interface AIState {
+    state: 'thinking' | 'generating';
+    message: string;
+    timestamp: string;
+}
+
 const ChatbotClient = () => {
     ///////////////////////////////////////////////////////////// VARIABLES /////////////////////////////////////////////////////////////////////
     const initialMessage: Message[] = [];
@@ -36,6 +48,7 @@ const ChatbotClient = () => {
     const [loading, setLoading] = useState({ fetch: false, submit: false });
     const [sessionId, setSessionId] = useState<string>(chatId || '');
     const [debugInfo, setDebugInfo] = useState<string>("");
+    const [currentAIState, setCurrentAIState] = useState<AIState | null>(null);
 
     const { socket, isConnected, connectError } = useSocket();
 
@@ -80,17 +93,66 @@ const ChatbotClient = () => {
     useEffect(() => {
         if (!socket) return;
 
-        // Listen for receive_message event
-        socket.on("receive_message", (data: { message: string; timestamp: string }) => {
-            console.log("Message received:", data);
+        // Listen for AI state changes
+        socket.on("ai_state", (data: AIState) => {
+            console.log("AI state:", data);
+            setCurrentAIState(data);
+            // Add or update the state message
+            setMessages((prev) => {
+                const stateMessage: Message = {
+                    _id: 'state_' + Date.now(),
+                    role: "assistant",
+                    content: data.message,
+                    createdAt: data.timestamp,
+                    isStreaming: true,
+                    isState: true,
+                    state: data.state
+                };
+                // Remove any previous state messages
+                const filteredMessages = prev.filter(msg => !msg.isState);
+                return [...filteredMessages, stateMessage];
+            });
+        });
+
+        // Listen for stream start
+        socket.on("stream_start", (data: { messageId: string; timestamp: string }) => {
+            console.log("Stream started:", data);
+            // Remove the state message when streaming starts
+            setMessages((prev) => prev.filter(msg => !msg.isState));
+            setCurrentAIState(null);
+            // Add a new empty message that will be updated with chunks
             const newMessage: Message = {
-                _id: Date.now().toString(),
+                _id: data.messageId,
                 role: "assistant",
-                content: data.message,
+                content: "",
                 createdAt: data.timestamp,
-                isStreaming: false,
+                isStreaming: true,
             };
             setMessages((prev) => [...prev, newMessage]);
+        });
+
+        // Listen for stream chunks
+        socket.on("stream_chunk", (data: StreamChunk) => {
+            console.log("Stream chunk:", data);
+            setMessages((prev) =>
+                prev.map((msg) =>
+                    msg._id === data.messageId
+                        ? { ...msg, content: msg.content + data.content }
+                        : msg
+                )
+            );
+        });
+
+        // Listen for stream end
+        socket.on("stream_end", (data: { messageId: string; timestamp: string }) => {
+            console.log("Stream ended:", data);
+            setMessages((prev) =>
+                prev.map((msg) =>
+                    msg._id === data.messageId
+                        ? { ...msg, isStreaming: false }
+                        : msg
+                )
+            );
             setLoading(pre => ({ ...pre, submit: false }));
         });
 
@@ -120,10 +182,14 @@ const ChatbotClient = () => {
             };
             setMessages((prev) => [...prev, errorMessage]);
             setLoading(pre => ({ ...pre, submit: false }));
+            setCurrentAIState(null);
         });
 
         return () => {
-            socket.off("receive_message");
+            socket.off("ai_state");
+            socket.off("stream_start");
+            socket.off("stream_chunk");
+            socket.off("stream_end");
             socket.off("system_message");
             socket.off("error");
         };
@@ -132,7 +198,7 @@ const ChatbotClient = () => {
     ///////////////////////////////////////////////////////////// FUNCTIONS /////////////////////////////////////////////////////////////////////
     const onSendMessage = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!user) {return toast.error("Please log in first.");}
+        if (!user) { return toast.error("Please log in first."); }
         if (message.trim() === "" || !socket || !isConnected || loading.submit || loading.fetch) return;
 
         setLoading(pre => ({ ...pre, submit: true }));

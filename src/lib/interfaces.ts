@@ -34,8 +34,8 @@ export interface MessageSource {
 }
 
 export interface Message {
-  _id?: string;
-  role: 'user' | 'assistant';
+  _id: string;
+  role: 'user' | 'assistant' | 'system';
   content: string;
   metadata?: {
     tokens?: number;
@@ -43,8 +43,9 @@ export interface Message {
     sources?: MessageSource[];
   };
   createdAt: string;
-  // Optional field for streaming messages
   isStreaming?: boolean;
+  isState?: boolean;
+  state?: 'thinking' | 'generating';
 }
 
 export interface Session {
