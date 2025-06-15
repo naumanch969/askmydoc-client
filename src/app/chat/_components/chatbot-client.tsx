@@ -7,7 +7,7 @@ import ChatbotNavbar from "./chatbot-header";
 import { Plus, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSocket } from "../context/SocketContext";
-import { Message, SocketMessage } from "@/lib/interfaces";
+import { Document, Message, Session, SocketMessage } from "@/lib/interfaces";
 import { useSearchParams } from "next/navigation";
 import { useDispatch } from "react-redux";
 import { getOneSession } from "@/store/reducers/sessionSlice";
@@ -48,7 +48,8 @@ const ChatbotClient = () => {
     const [loading, setLoading] = useState({ fetch: false, submit: false });
     const [sessionId, setSessionId] = useState<string>(chatId || '');
     const [debugInfo, setDebugInfo] = useState<string>("");
-    const [currentAIState, setCurrentAIState] = useState<AIState | null>(null);
+    const [_currentAIState, setCurrentAIState] = useState<AIState | null>(null);
+    const [selectedSession, setSelectedSession] = useState<Session | null>(null);
 
     const { socket, isConnected, connectError } = useSocket();
 
@@ -58,7 +59,9 @@ const ChatbotClient = () => {
         if (!sessionId) return;
         setLoading(pre => ({ ...pre, fetch: true }))
         dispatch(getOneSession(sessionId))
-            .then(() => {
+            .then((action) => {
+                if (!action.payload) return;
+                setSelectedSession(action.payload as Session);
                 // Join the socket room for this session
                 if (socket && isConnected) {
                     socket.emit('join_session', sessionId);
@@ -254,7 +257,7 @@ const ChatbotClient = () => {
                         )}
 
                         {messages?.length === 0 ? (
-                            <DefaultScreen />
+                            <DefaultScreen selectedSession={selectedSession} />
                         ) : (
                             <MessageBox messages={messages} />
                         )}
@@ -291,7 +294,7 @@ const ChatbotClient = () => {
                             <span className="text-secondary-foreground text-xs">
                                 {!isConnected
                                     ? `Connecting to server... ${connectError ? `(Error: ${connectError})` : ""}`
-                                    : "LegalEase can make mistakes. Check important info."}
+                                    : "FlashAI can make mistakes. Check important info."}
                             </span>
                         </div>
                     </form>

@@ -12,7 +12,8 @@ import { useRouter } from "next/navigation";
 import AlertModal from "@/components/alert-modal";
 import toast from "react-hot-toast";
 import { useUser } from "@clerk/nextjs";
-import { uploadDocument } from "@/store/reducers/documentSlice";
+import { socket } from "@/lib/socket";
+import { Progress } from "@/components/ui/progress";
 
 interface ChatSidebarProps {
   setSessionId: Dispatch<SetStateAction<string>>
@@ -22,6 +23,12 @@ interface ChatSidebarProps {
 interface SidebarChatItem {
   section: string,
   items: Session[]
+}
+
+interface ProcessingDocument {
+  documentId: string;
+  filename: string;
+  progress: number;
 }
 
 const ChatbotSidebar: React.FC<ChatSidebarProps> = ({ sessionId, setSessionId }: ChatSidebarProps) => {
@@ -39,6 +46,7 @@ const ChatbotSidebar: React.FC<ChatSidebarProps> = ({ sessionId, setSessionId }:
   const [sessionToDelete, setSessionToDelete] = useState<Session | null>(null);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [processingDocuments, setProcessingDocuments] = useState<ProcessingDocument[]>([]);
 
   //////////////////////////////////////////////////////////// USE EFFECTS //////////////////////////////////////////////////////////////////
   useEffect(() => {
@@ -98,25 +106,79 @@ const ChatbotSidebar: React.FC<ChatSidebarProps> = ({ sessionId, setSessionId }:
     setSessions(groupChatsByDate());
   }, [fetchedSessions]);
 
+  useEffect(() => {
+    // Socket event listeners for document processing
+    socket.on('document_processing_started', (data: { documentId: string }) => {
+      setProcessingDocuments(prev => [...prev, { documentId: data.documentId, filename: '', progress: 0 }]);
+    });
+
+    socket.on('document_processing_progress', (data: { documentId: string, progress: number }) => {
+      setProcessingDocuments(prev =>
+        prev.map(doc =>
+          doc.documentId === data.documentId
+            ? { ...doc, progress: data.progress }
+            : doc
+        )
+      );
+    });
+
+    socket.on('document_processing_completed', (data: { documentId: string, sessionId: string }) => {
+      setProcessingDocuments(prev => prev.filter(doc => doc.documentId !== data.documentId));
+      dispatch(getAllSessions());
+      // Navigate to the new session
+      router.push('/chat?id=' + data.sessionId);
+      setSessionId(data.sessionId);
+      setLoading(pre => ({ ...pre, upload: false }));
+      toast.success('Document processed successfully');
+    });
+
+    socket.on('upload_error', (data: { message: string }) => {
+      toast.error(data.message);
+      setLoading(pre => ({ ...pre, upload: false }));
+    });
+
+    return () => {
+      socket.off('document_processing_started');
+      socket.off('document_processing_progress');
+      socket.off('document_processing_completed');
+      socket.off('upload_error');
+    };
+  }, [dispatch, router, setSessionId]);
+
   //////////////////////////////////////////////////////////// FUNCTIONS //////////////////////////////////////////////////////////////////
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const onFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
 
     try {
       setLoading(pre => ({ ...pre, upload: true }));
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('userId', user.id);
-      await dispatch(uploadDocument(formData))
-        .then(({ payload }) => {
-          if (!payload) return;
-          dispatch(getAllSessions());
-        })
+
+      // Convert file to buffer
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      // Emit upload event via socket with retry
+      const uploadWithRetry = async (retries = 3) => {
+        for (let i = 0; i < retries; i++) {
+          try {
+            socket.emit('upload_document', {
+              file: buffer,
+              filename: file.name,
+              clerkId: user.id
+            });
+            break; // If successful, break the retry loop
+          } catch (err) {
+            if (i === retries - 1) throw err; // If last retry, throw the error
+            await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); // Wait before retry
+          }
+        }
+      };
+
+      await uploadWithRetry();
+
     } catch (err) {
       console.error('Failed to upload document:', err);
       toast.error('Failed to upload document');
-    } finally {
       setLoading(pre => ({ ...pre, upload: false }));
     }
   };
@@ -188,19 +250,21 @@ const ChatbotSidebar: React.FC<ChatSidebarProps> = ({ sessionId, setSessionId }:
 
     try {
       setLoading(pre => ({ ...pre, upload: true }));
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('userId', user.id);
-      dispatch(uploadDocument(formData))
-        .then(({ payload }) => {
-          if (!payload) return;
-          toast.success('Document uploaded successfully');
-          dispatch(getAllSessions());
-        });
+
+      // Convert file to buffer
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      // Emit upload event via socket
+      socket.emit('upload_document', {
+        file: buffer,
+        filename: file.name,
+        clerkId: user.id
+      });
+
     } catch (err) {
       console.error('Failed to upload document:', err);
       toast.error('Failed to upload document');
-    } finally {
       setLoading(pre => ({ ...pre, upload: false }));
     }
   };
@@ -234,7 +298,7 @@ const ChatbotSidebar: React.FC<ChatSidebarProps> = ({ sessionId, setSessionId }:
               <input
                 type="file"
                 className="hidden"
-                onChange={handleFileUpload}
+                onChange={onFileUpload}
                 accept=".pdf"
                 disabled={loading.upload}
               />
@@ -249,6 +313,22 @@ const ChatbotSidebar: React.FC<ChatSidebarProps> = ({ sessionId, setSessionId }:
               </div>
             </label>
           </div>
+
+          {/* Processing Documents */}
+          {processingDocuments.length > 0 && (
+            <div className="mx-2 mt-4 space-y-2">
+              <h3 className="text-sm font-medium text-gray-500">Processing Documents</h3>
+              {processingDocuments.map((doc) => (
+                <div key={doc.documentId} className="p-2 bg-muted rounded-lg">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm truncate">{doc.filename || 'Processing...'}</span>
+                    <span className="text-xs text-gray-500">{doc.progress}%</span>
+                  </div>
+                  <Progress value={doc.progress} className="h-1" />
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Sessions List */}
           <div className="mt-4">
