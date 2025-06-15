@@ -58,9 +58,9 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDocumentUploaded, onError }) 
             }, 200)
 
         } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Upload failed.';
+            const axiosError = error as Error & { response?: { data?: { message?: string } } };
+            const errorMessage = axiosError?.response?.data?.message || axiosError?.message || 'Upload failed.';
             onError?.(errorMessage);
-            console.error('Upload error:', error)
         } finally {
             setIsUploading(false)
             e.target.value = '' // Reset input

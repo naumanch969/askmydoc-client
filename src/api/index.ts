@@ -2,6 +2,17 @@ import axios from "axios";
 import { SERVER_URL } from "@/constants";
 import type { Document, Message, Session, ApiResponse } from '@/interfaces';
 
+declare global {
+    interface Window {
+        Clerk?: {
+            session?: {
+                getToken: () => Promise<string | null>;
+                id: string;
+            };
+        };
+    }
+}
+
 // API Client
 const api = axios.create({
     baseURL: `${SERVER_URL}`,
@@ -11,10 +22,14 @@ const api = axios.create({
 });
 
 // Add auth token to requests
-api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+api.interceptors.request.use(async (config) => {
+    const clerk = window.Clerk;
+    if (clerk?.session) {
+        const token = await clerk.session.getToken();
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+            config.headers['x-session-id'] = clerk.session.id;
+        }
     }
     return config;
 });
@@ -79,8 +94,8 @@ export const sessionApi = {
 
 // Chat APIs
 export const chatApi = {
-    sendMessage: async (sessionId: string, content: string): Promise<ApiResponse<Message>> => {
-        const { data } = await api.post(`/sessions/${sessionId}/messages`, { content });
+    sendMessage: async (sessionId: string, message: string): Promise<ApiResponse<Message>> => {
+        const { data } = await api.post(`/sessions/${sessionId}/messages`, { message });
         return data;
     },
 

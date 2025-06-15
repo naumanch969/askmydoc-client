@@ -47,13 +47,15 @@ const ChatBox: React.FC<ChatBoxProps> = ({ sessionId, onMessageSent, onError }) 
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, streamingMessage]);
 
+    useEffect(() => {
+        console.log('messages changed', messages);
+    }, [messages])
+
     //////////////////////////////////////////////////////////// FUNCTIONS ////////////////////////////////////////////////////////////////
     const handleSend = async () => {
         if (!input.trim() || isLoading) return;
 
         const userMessage: Message = {
-            _id: Date.now().toString(), // Temporary ID
-            sessionId,
             role: 'user',
             content: input,
             createdAt: new Date().toISOString(),
@@ -66,20 +68,19 @@ const ChatBox: React.FC<ChatBoxProps> = ({ sessionId, onMessageSent, onError }) 
 
         try {
 
-            const response = await chatApi.sendMessage(sessionId, input);
-            console.log('response', response);
+            const { data } = await chatApi.sendMessage(sessionId, input);
+            console.log('response', data);
 
-            // Start streaming response
-            await chatApi.streamMessage(sessionId, input, (chunk) => {
-                setStreamingMessage(prev => prev + chunk);
-            });
+            // // Start streaming response
+            // await chatApi.streamMessage(sessionId, input, (chunk) => {
+            //     setStreamingMessage(prev => prev + chunk);
+            // });
 
             // Add the complete message to the chat
             const botMessage: Message = {
                 _id: Date.now().toString(), // Temporary ID
-                sessionId,
                 role: 'assistant',
-                content: streamingMessage,
+                content: data.content,
                 createdAt: new Date().toISOString(),
             };
 
@@ -110,9 +111,9 @@ const ChatBox: React.FC<ChatBoxProps> = ({ sessionId, onMessageSent, onError }) 
                         Start a conversation with your document
                     </div>
                 ) : (
-                    messages.map((msg) => (
+                    messages.map((msg, index) => (
                         <div
-                            key={msg._id}
+                            key={index}
                             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                         >
                             <div

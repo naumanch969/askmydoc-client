@@ -29,6 +29,7 @@ export default function Home() {
   };
 
   const handleError = (error: string) => {
+    console.log('error', error);
     toast.error(error);
   };
 
