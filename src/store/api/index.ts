@@ -1,6 +1,7 @@
 import axios from "axios";
 import { SERVER_URL } from "@/constants";
 import type { Document, Message, Session, ApiResponse } from '@/lib/interfaces';
+import { waitForClerkSession } from "@/lib/utils";
 
 const API = axios.create({
   baseURL: SERVER_URL,
@@ -18,6 +19,7 @@ const FormDataAPI = axios.create({
 });
 
 API.interceptors.request.use(async (config) => {
+  await waitForClerkSession();
   const clerk = window.Clerk;
   if (clerk?.session) {
     const token = await clerk.session.getToken();
@@ -28,7 +30,9 @@ API.interceptors.request.use(async (config) => {
   }
   return config;
 });
+
 FormDataAPI.interceptors.request.use(async (config) => {
+  await waitForClerkSession();
   const clerk = window.Clerk;
   if (clerk?.session) {
     const token = await clerk.session.getToken();
@@ -39,6 +43,7 @@ FormDataAPI.interceptors.request.use(async (config) => {
   }
   return config;
 });
+
 
 ////////////////////////////////////////////////////////// DOCUMENT ////////////////////////////////////////////////////////////
 export const uploadDocument = (formData: FormData) => FormDataAPI.post<ApiResponse<Document>>(`/documents`, formData);

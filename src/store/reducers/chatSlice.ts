@@ -33,7 +33,6 @@ export const getMessageHistory = createAsyncThunk('message/getMessageHistory', a
         return data?.data;
     } catch (error) {
         const message = getErrorMessage(error, 'Failed to fetch message history');
-        toast.error(message);
         return rejectWithValue(message);
     }
 });

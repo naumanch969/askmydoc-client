@@ -14,7 +14,6 @@ interface DocumentState {
 export const uploadDocument = createAsyncThunk('document/uploadDocument', async (formData: FormData, { rejectWithValue }) => {
     try {
         const { data } = await api.uploadDocument(formData);
-        console.log('data',data);
         if (data?.success) toast.success(data?.message);
         else toast.error(data.message);
         return data.data;

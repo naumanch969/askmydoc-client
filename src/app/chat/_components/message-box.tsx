@@ -29,7 +29,7 @@ const MessageBox: React.FC<MessageBoxProps> = ({ messages }) => {
           <div
             className={`max-w-[80%] p-3 rounded-lg ${message.role == "assistant"
               ? "bg-gray-200 text-gray-800"
-              : "bg-blue-600 text-neutral"
+              : "bg-primary text-primary-foreground"
               }`}
           >
             <ReactMarkdown>{message.content}</ReactMarkdown>

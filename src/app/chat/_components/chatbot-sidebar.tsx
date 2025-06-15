@@ -1,6 +1,6 @@
 import React, { Dispatch, useEffect, useState } from "react";
 import Logo from "@/components/Logo";
-import { Session } from "@/lib/interfaces";
+import { Document, Session } from "@/lib/interfaces";
 import { deleteSession, getAllSessions, pinSession, updateSession } from "@/store/reducers/sessionSlice";
 import { AppDispatch, RootState } from "@/store/store";
 import { useDispatch, useSelector } from "react-redux";
@@ -15,7 +15,6 @@ import { useUser } from "@clerk/nextjs";
 import { uploadDocument } from "@/store/reducers/documentSlice";
 
 interface ChatSidebarProps {
-  setSelectedChat: Dispatch<SetStateAction<Session | null>>
   setSessionId: Dispatch<SetStateAction<string>>
   sessionId: string
 }
@@ -25,7 +24,7 @@ interface SidebarChatItem {
   items: Session[]
 }
 
-const ChatbotSidebar: React.FC<ChatSidebarProps> = ({ setSelectedChat, sessionId, setSessionId }: ChatSidebarProps) => {
+const ChatbotSidebar: React.FC<ChatSidebarProps> = ({ sessionId, setSessionId }: ChatSidebarProps) => {
 
   //////////////////////////////////////////////////////////// VARIABLES //////////////////////////////////////////////////////////////////
   const dispatch = useDispatch<AppDispatch>();
@@ -151,7 +150,7 @@ const ChatbotSidebar: React.FC<ChatSidebarProps> = ({ setSelectedChat, sessionId
     if (!session) return;
     router.push('/chat?id=' + session._id);
     setSessionId(session._id);
-    setSelectedChat(session);
+    // setSelectedChat(session);
   };
 
   const onDelete = async () => {
@@ -295,7 +294,7 @@ const ChatbotSidebar: React.FC<ChatSidebarProps> = ({ setSelectedChat, sessionId
                       ) : (
                         <>
                           <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <span className="truncate">{session.title}</span>
+                            <span className="truncate">{(session.document as Document).originalName}</span>
                           </div>
                           <div className="flex justify-end items-center">
                             <button
