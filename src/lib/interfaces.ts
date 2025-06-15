@@ -1,4 +1,4 @@
-import { DocumentStatus } from "@/enums";
+import { DocumentStatus } from "@/lib/enums";
 
 // Backend Model Interfaces
 export interface User {
@@ -11,7 +11,7 @@ export interface User {
 
 export interface Document {
   _id: string;
-  userId: string;
+  user: User | string;
   clerkId: string;
   filename: string;
   originalName: string;
@@ -43,16 +43,19 @@ export interface Message {
     sources?: MessageSource[];
   };
   createdAt: string;
+  // Optional field for streaming messages
+  isStreaming?: boolean;
 }
 
 export interface Session {
   _id: string;
-  userId: string;
+  user: User | string;
   clerkId: string;
-  documentId: string;
+  document: Document | string;
   title?: string;
   messages: Message[];
   status: 'active' | 'archived';
+  isPinned: boolean;
   metadata: {
     totalTokens: number;
     lastActivity: string;
@@ -65,6 +68,7 @@ export interface Session {
 // API Response Types
 export interface ApiResponse<T> {
   data: T;
-  message?: string;
+  message: string;
   status: number;
+  success: boolean;
 }

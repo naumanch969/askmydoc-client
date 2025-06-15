@@ -1,6 +1,6 @@
 import axios from "axios";
 import { SERVER_URL } from "@/constants";
-import type { Document, Message, Session, ApiResponse } from '@/interfaces';
+import type { Document, Message, Session, ApiResponse } from '@/lib/interfaces';
 
 declare global {
     interface Window {

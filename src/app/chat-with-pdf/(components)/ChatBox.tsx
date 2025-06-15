@@ -13,7 +13,7 @@ interface FileUploadProps {
     onError?: (error: string) => void;
 }
 
-const FileUpload: React.FC<FileUploadProps> = ({ onDocumentUploaded, onError }) => {
+const LeftBar: React.FC<FileUploadProps> = ({ onDocumentUploaded, onError }) => {
     const inputRef = useRef<HTMLInputElement>(null)
     const { user } = useUser();
 
@@ -111,4 +111,4 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDocumentUploaded, onError }) 
     )
 }
 
-export default FileUpload
+export default LeftBar

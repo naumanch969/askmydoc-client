@@ -2,7 +2,10 @@ import { type Metadata } from 'next'
 import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn } from '@clerk/nextjs'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
-import { Toaster } from 'sonner';
+
+import StateProvider from '@/wrappers/StateProvider';
+import { SocketProvider } from './chat/context/SocketContext';
+import { Toaster } from 'react-hot-toast';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -25,7 +28,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <html lang="en">
         <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
           <SignedIn>
-            {children}
+            <SocketProvider>
+              <StateProvider>
+                {children}
+              </StateProvider>
+            </SocketProvider>
           </SignedIn>
           <SignedOut>
             <RedirectToSignIn />

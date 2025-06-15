@@ -1,12 +1,12 @@
 "use client"
 
-import ChatBox from "@/components/ChatBox";
-import FileUpload from "@/components/FileUpload";
 import { UserButton } from "@clerk/nextjs";
 import { useState } from "react";
-import type { Document, Session } from "@/interfaces";
 import { sessionApi } from "@/api";
-import { toast } from "sonner";
+import { toast } from "react-hot-toast";
+import { Document, Session } from "@/lib/interfaces";
+import FileUpload from "@/components/FileUpload";
+import ChatBox from "@/components/ChatBox";
 
 export default function Home() {
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
