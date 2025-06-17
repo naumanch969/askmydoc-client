@@ -4,7 +4,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 
 import StateProvider from '@/wrappers/StateProvider';
-import { SocketProvider } from './chat/context/SocketContext';
+import { SocketProvider } from './(chat)/context/SocketContext';
 import { Toaster } from 'react-hot-toast';
 
 const geistSans = Geist({
